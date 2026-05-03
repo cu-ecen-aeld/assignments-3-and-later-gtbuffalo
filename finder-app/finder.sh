@@ -37,7 +37,7 @@ else
 fi
 
 # Determine X, the nuber of files, and Y, the number of files with *searchstr*.
-X=`find ${filesdir} | wc -l`
+X=`find ${filesdir} -type f | wc -l`
 Y=`grep -r "${searchstr}" ${filesdir} | wc -l`
 
 # Report the results
