@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     char* write_file = argv[1];
     char* write_string = argv[2];
 
-    syslog(LOG_INFO,"arguments: write_file=%s, write_string=%s",write_file, write_string);
+    syslog(LOG_DEBUG,"arguments: write_file=%s, write_string=%s",write_file, write_string);
  
     errno = 0;
     int target_fd = open(write_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -40,8 +40,9 @@ int main(int argc, char** argv) {
         syslog(LOG_ERR,"ERROR: Cannot open file for writing, %s: %s (%d)\n", write_file, strerror(error), error);
     }
     int bytes_written = 0;
+        syslog(LOG_DEBUG,"Writing %s to file %s", write_string, write_file);
     if(bytes_written = write(target_fd,write_string, strlen(write_string))){
-        syslog(LOG_INFO,"Wrote %d bytes to file, %s", bytes_written, write_file);
+        syslog(LOG_DEBUG,"Wrote %d bytes to file, %s", bytes_written, write_file);
     } else {
         int error = errno;
         fprintf(stderr,"ERROR: Cannot write to file, %s: %s (%d)\n", write_file, strerror(error), error);
