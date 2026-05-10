@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
         syslog(LOG_ERR, "Invalid number of arguments %d", argc);
         closelog();
 
-        fprintf(stderr,"Invalid number of arguments %d", argc);
+        fprintf(stderr,"Invalid number of arguments %d\n", argc);
 
         show_usage(argv[0]);
         return 1;
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     syslog(LOG_INFO,"arguments: write_file=%s, write_string=%s",write_file, write_string);
  
     errno = 0;
-    int target_fd = open(write_file, O_WRONLY | O_CREAT | O_TRUNC);
+    int target_fd = open(write_file, O_WRONLY | O_CREAT | O_TRUNC, 777);
     const int error = errno;
     if(OPEN_ERROR == target_fd) {
         fprintf(stderr,"ERROR: Cannot open file for writing, %s: %s (%d)\n", write_file, strerror(error), error);
