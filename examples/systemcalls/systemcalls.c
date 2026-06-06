@@ -9,13 +9,16 @@
 */
 bool do_system(const char *cmd)
 {
-
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
+#define NO_SHELL_AVAILABLE 0
+#define CANT_CREATE_CHILD -1
+    int return_value = system(cmd);
+    if(NO_SHELL_AVAILABLE == return_value) {
+        perror("system: ");
+        return false;
+    } else if (CANT_CREATE_CHILD == return_value){
+        perror("system");
+        return false;
+    }
 
     return true;
 }
