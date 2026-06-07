@@ -1,4 +1,5 @@
 #include "systemcalls.h"
+#include <stdlib.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -11,11 +12,15 @@ bool do_system(const char *cmd)
 {
 #define NO_SHELL_AVAILABLE 0
 #define CANT_CREATE_CHILD -1
+#define NO_SHELL_CREATED 127
     int return_value = system(cmd);
     if(NO_SHELL_AVAILABLE == return_value) {
         perror("system: ");
         return false;
     } else if (CANT_CREATE_CHILD == return_value){
+        perror("system");
+        return false;
+    } else if (NO_SHELL_CREATED == return_value){
         perror("system");
         return false;
     }
