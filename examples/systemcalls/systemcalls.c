@@ -91,7 +91,7 @@ bool do_exec(int count, ...)
         return_value = false;
     } else if (!pid) {
         syslog(LOG_ERR, "fork() succeeded - in child (%d)", pid);
-        syslog(LOG_INFO, "Calling execv() in child with %s, %p", command[0]);
+        syslog(LOG_INFO, "Calling execv() in child with %s, %p", command[0], argv);
         status = execv(command[0],argv);
         if(FAILURE != waitpid(pid, &status, NO_WAIT_OPTIONS)) {
             if (WIFEXITED(status)){
