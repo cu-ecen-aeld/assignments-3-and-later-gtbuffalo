@@ -55,7 +55,7 @@ bool do_exec(int count, ...)
     va_list args;
     va_start(args, count);
     char * command[count+1];
-    char * argv[count];
+    char * child_args[count];
     bool return_value = false;
 #define FAILURE -1
 #define NO_WAIT_OPTIONS 0
@@ -67,11 +67,11 @@ bool do_exec(int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    for(i=1; i<count; i++)
+    for(i=0; i<count-1; i++)
     {
-        argv[i] = command[i];
+        child_args[i] = command[i+1];
     }
-    argv[count] = NULL;
+    child_args[count-1] = NULL;
 
  /*
  *   Execute a system command by calling fork, execv(),
@@ -89,14 +89,30 @@ bool do_exec(int count, ...)
         syslog(LOG_ERR, "Calling fork() from parent (%d)", pid);
         perror("fork");
         return_value = false;
-    } else if (!pid) {
+    } else if (0 == pid) {
         syslog(LOG_ERR, "fork() succeeded - in child (%d)", pid);
-        syslog(LOG_INFO, "Calling execv() in child with %s, %p", command[0], argv);
-        status = execv(command[0],argv);
+        syslog(LOG_INFO, "Calling execv() in child with %s, %p", command[0], child_args);
+        status = execv(command[0],child_args);
         if(FAILURE != waitpid(pid, &status, NO_WAIT_OPTIONS)) {
             if (WIFEXITED(status)){
               syslog(LOG_INFO, "execv() in child (%d) returned with status %d", pid, WEXITSTATUS(status));
               return_value = true;
+            }
+        } else {
+            syslog(LOG_ERR, "Calling execv() failed for child (%d)", pid);
+            perror("execv");
+            return_value = false;
+        }
+    } else {
+        syslog(LOG_INFO, "Calling waitpid() on child with %d",pid);
+        if(FAILURE != waitpid(pid, &status, NO_WAIT_OPTIONS)) {
+            if (WIFEXITED(status)){
+              syslog(LOG_INFO, "execv() exited to parent returning with status %d ",WEXITSTATUS(status));
+              if(EXIT_SUCCESS == WEXITSTATUS(status)){
+                return_value = true;
+              } else {
+                return_value = false;
+              }
             }
         } else {
             syslog(LOG_ERR, "Calling execv() failed for child (%d)", pid);
