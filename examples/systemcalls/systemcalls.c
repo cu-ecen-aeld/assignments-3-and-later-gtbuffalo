@@ -1,5 +1,11 @@
 #include "systemcalls.h"
+#include <sys/wait.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <syslog.h>
 #include <stdlib.h>
+
 
 /**
  * @param cmd the command to execute with system()
@@ -10,22 +16,24 @@
 */
 bool do_system(const char *cmd)
 {
-#define NO_SHELL_AVAILABLE 0
-#define CANT_CREATE_CHILD -1
-#define NO_SHELL_CREATED 127
-    int return_value = system(cmd);
-    if(NO_SHELL_AVAILABLE == return_value) {
-        perror("system: ");
-        return false;
-    } else if (CANT_CREATE_CHILD == return_value){
-        perror("system");
-        return false;
-    } else if (NO_SHELL_CREATED == return_value){
-        perror("system");
-        return false;
-    }
+    /* Reference: The Linux Programming Interface p581 */
 
-    return true;
+#define CANT_CREATE_CHILD -1  /* or termination status not retrieved */
+    openlog(NULL, 0, LOG_USER);
+    bool return_value = false;
+    syslog(LOG_INFO, "Calling system() with cmd: %s", cmd);
+    int status = system(cmd);
+    if (CANT_CREATE_CHILD == status){
+        syslog(LOG_ERR, "Calling system() with cmd: %s (%d)", cmd, status);
+        perror("system");
+        return_value = false;
+    } else {
+        syslog(LOG_INFO, "system() completed cmd: %s (%d)", cmd, status);
+        return_value = true;
+    }
+   
+    closelog();
+    return return_value;
 }
 
 /**
@@ -47,18 +55,25 @@ bool do_exec(int count, ...)
     va_list args;
     va_start(args, count);
     char * command[count+1];
+    char * argv[count];
+    bool return_value = false;
+#define FAILURE -1
+#define NO_WAIT_OPTIONS 0
+    pid_t pid = FAILURE;
     int i;
+    int status = FAILURE;
     for(i=0; i<count; i++)
     {
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
+    for(i=1; i<count; i++)
+    {
+        argv[i] = command[i];
+    }
+    argv[count] = NULL;
 
-/*
- * TODO:
+ /*
  *   Execute a system command by calling fork, execv(),
  *   and wait instead of system (see LSP page 161).
  *   Use the command[0] as the full path to the command to execute
@@ -66,10 +81,33 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    openlog(NULL, 0, LOG_USER);
 
+    syslog(LOG_INFO, "Calling fork() for system impl...");
+    pid = fork();
+    if (FAILURE == pid){
+        syslog(LOG_ERR, "Calling fork() from parent (%d)", pid);
+        perror("fork");
+        return_value = false;
+    } else if (!pid) {
+        syslog(LOG_ERR, "fork() succeeded - in child (%d)", pid);
+        syslog(LOG_INFO, "Calling execv() in child with %s, %p", command[0]);
+        status = execv(command[0],argv);
+        if(FAILURE != waitpid(pid, &status, NO_WAIT_OPTIONS)) {
+            if (WIFEXITED(status)){
+              syslog(LOG_INFO, "execv() in child (%d) returned with status %d", pid, WEXITSTATUS(status));
+              return_value = true;
+            }
+        } else {
+            syslog(LOG_ERR, "Calling execv() failed for child (%d)", pid);
+            perror("execv");
+            return_value = false;
+        }
+    }
+   
     va_end(args);
-
-    return true;
+    closelog();
+    return return_value;
 }
 
 /**
