@@ -6,6 +6,8 @@
 #include <syslog.h>
 #include <stdlib.h>
 
+static int DO_EXEC_CALLED = 0;
+
 
 /**
  * @param cmd the command to execute with system()
@@ -82,32 +84,32 @@ bool do_exec(int count, ...)
  *
 */
     openlog(NULL, 0, LOG_USER);
-
-    syslog(LOG_INFO, "Calling fork() for system impl...");
+    DO_EXEC_CALLED+=1;
+    syslog(LOG_INFO, "[%d] Calling fork() for system impl...", DO_EXEC_CALLED);
     pid = fork();
     if (FAILURE == pid){
-        syslog(LOG_ERR, "Calling fork() from parent (%d)", pid);
+        syslog(LOG_ERR, "[%d] Calling fork() from parent (%d)", DO_EXEC_CALLED, pid);
         perror("fork");
         return_value = false;
     } else if (0 == pid) {
-        syslog(LOG_ERR, "fork() succeeded - in child (%d)", pid);
-        syslog(LOG_INFO, "Calling execv() in child with %s, %p", command[0], child_args);
+        syslog(LOG_ERR, "[%d] fork() succeeded - in child (%d)", DO_EXEC_CALLED, pid);
+        syslog(LOG_INFO, "[%d] Calling execv() in child with %s, %s", DO_EXEC_CALLED, command[0], child_args[0]);
         status = execv(command[0],child_args);
         if(FAILURE != waitpid(pid, &status, NO_WAIT_OPTIONS)) {
             if (WIFEXITED(status)){
-              syslog(LOG_INFO, "execv() in child (%d) returned with status %d", pid, WEXITSTATUS(status));
+              syslog(LOG_INFO, "[%d] execv() in child (%d) returned with status %d", DO_EXEC_CALLED, pid, WEXITSTATUS(status));
               return_value = true;
             }
         } else {
-            syslog(LOG_ERR, "Calling execv() failed for child (%d)", pid);
+            syslog(LOG_ERR, "[%d] Calling execv() failed for child (%d)", DO_EXEC_CALLED, pid);
             perror("execv");
             return_value = false;
         }
     } else {
-        syslog(LOG_INFO, "Calling waitpid() on child with %d",pid);
+        syslog(LOG_INFO, "[%d] Calling waitpid() on child with %d", DO_EXEC_CALLED,pid);
         if(FAILURE != waitpid(pid, &status, NO_WAIT_OPTIONS)) {
             if (WIFEXITED(status)){
-              syslog(LOG_INFO, "execv() exited to parent returning with status %d ",WEXITSTATUS(status));
+              syslog(LOG_INFO, "[%d] execv() exited to parent returning with status %d for %s %s %s", DO_EXEC_CALLED,WEXITSTATUS(status), command[0], child_args[0], count > 1 ? child_args[1] : "" );
               if(EXIT_SUCCESS == WEXITSTATUS(status)){
                 return_value = true;
               } else {
@@ -115,7 +117,7 @@ bool do_exec(int count, ...)
               }
             }
         } else {
-            syslog(LOG_ERR, "Calling execv() failed for child (%d)", pid);
+            syslog(LOG_ERR, "[%d] Calling execv() failed for child (%d)", DO_EXEC_CALLED, pid);
             perror("execv");
             return_value = false;
         }
@@ -123,6 +125,7 @@ bool do_exec(int count, ...)
    
     va_end(args);
     closelog();
+    syslog(LOG_INFO, "[%d] do_exec returning %s", DO_EXEC_CALLED, return_value ? "true" : "false");
     return return_value;
 }
 
